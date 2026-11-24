@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SchoolItem" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="definition"]
+[ext_resource type="Texture2D" path="res://assets/items/icons/flashlight.png" id="icon"]
+[ext_resource type="PackedScene" path="res://assets/items/models/flashlight.glb" id="model"]
+
+[resource]
+script = ExtResource("definition")
+item_id = &"flashlight"
+display_name = "Senter petugas"
+description = "Cahaya senter masih berfungsi. Tutup baterainya berbau logam."
+icon = ExtResource("icon")
+world_model = ExtResource("model")
+item_type = &"alat"
+stackable = false
+max_stack = 1
+quest_item = true
+usable = true

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SchoolItem" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="definition"]
+[ext_resource type="Texture2D" path="res://assets/items/icons/medicine_box.png" id="icon"]
+[ext_resource type="PackedScene" path="res://assets/items/models/medicine_box.glb" id="model"]
+
+[resource]
+script = ExtResource("definition")
+item_id = &"medicine_box"
+display_name = "Kotak P3K"
+description = "Kotak putih dengan engsel logam dan lambang hijau."
+icon = ExtResource("icon")
+world_model = ExtResource("model")
+item_type = &"persediaan"
+stackable = false
+max_stack = 1
+quest_item = false
+usable = false

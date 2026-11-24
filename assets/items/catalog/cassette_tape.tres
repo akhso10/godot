@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SchoolItem" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="definition"]
+[ext_resource type="Texture2D" path="res://assets/items/icons/cassette_tape.png" id="icon"]
+[ext_resource type="PackedScene" path="res://assets/items/models/cassette_tape.glb" id="model"]
+
+[resource]
+script = ExtResource("definition")
+item_id = &"cassette_tape"
+display_name = "Kaset Laras"
+description = "Tulisan tangan pada sisi A hampir pudar."
+icon = ExtResource("icon")
+world_model = ExtResource("model")
+item_type = &"bukti"
+stackable = false
+max_stack = 1
+quest_item = true
+usable = true

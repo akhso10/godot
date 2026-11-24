@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SchoolItem" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="definition"]
+[ext_resource type="Texture2D" path="res://assets/items/icons/smartphone_akbar.png" id="icon"]
+[ext_resource type="PackedScene" path="res://assets/items/models/smartphone_akbar.glb" id="model"]
+
+[resource]
+script = ExtResource("definition")
+item_id = &"smartphone_akbar"
+display_name = "Ponsel Akbar"
+description = "Ada pesan keluar yang tak kunjung terkirim."
+icon = ExtResource("icon")
+world_model = ExtResource("model")
+item_type = &"pribadi"
+stackable = false
+max_stack = 1
+quest_item = false
+usable = false

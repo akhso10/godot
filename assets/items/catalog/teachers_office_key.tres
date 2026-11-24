@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SchoolItem" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="definition"]
+[ext_resource type="Texture2D" path="res://assets/items/icons/teachers_office_key.png" id="icon"]
+[ext_resource type="PackedScene" path="res://assets/items/models/teachers_office_key.glb" id="model"]
+
+[resource]
+script = ExtResource("definition")
+item_id = &"teachers_office_key"
+display_name = "Kunci ruang guru"
+description = "Gantungan merahnya kusam karena sering berpindah tangan."
+icon = ExtResource("icon")
+world_model = ExtResource("model")
+item_type = &"kunci"
+stackable = false
+max_stack = 1
+quest_item = true
+usable = false

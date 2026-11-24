@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SchoolItem" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="definition"]
+[ext_resource type="Texture2D" path="res://assets/items/icons/water_bottle.png" id="icon"]
+[ext_resource type="PackedScene" path="res://assets/items/models/water_bottle.glb" id="model"]
+
+[resource]
+script = ExtResource("definition")
+item_id = &"water_bottle"
+display_name = "Botol Akbar"
+description = "Penyok kecil di sisi botol ini dikenali Raka."
+icon = ExtResource("icon")
+world_model = ExtResource("model")
+item_type = &"pribadi"
+stackable = false
+max_stack = 1
+quest_item = false
+usable = false

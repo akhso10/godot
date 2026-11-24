@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SchoolItem" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="definition"]
+[ext_resource type="Texture2D" path="res://assets/items/icons/smartphone_reski.png" id="icon"]
+[ext_resource type="PackedScene" path="res://assets/items/models/smartphone_reski.glb" id="model"]
+
+[resource]
+script = ExtResource("definition")
+item_id = &"smartphone_reski"
+display_name = "Ponsel Reski"
+description = "Casing hijau. Tersimpan catatan tugas kelompok."
+icon = ExtResource("icon")
+world_model = ExtResource("model")
+item_type = &"pribadi"
+stackable = false
+max_stack = 1
+quest_item = false
+usable = false

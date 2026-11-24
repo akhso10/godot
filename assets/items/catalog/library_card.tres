@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="SchoolItem" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/item_definition.gd" id="definition"]
+[ext_resource type="Texture2D" path="res://assets/items/icons/library_card.png" id="icon"]
+[ext_resource type="PackedScene" path="res://assets/items/models/library_card.glb" id="model"]
+
+[resource]
+script = ExtResource("definition")
+item_id = &"library_card"
+display_name = "Kartu perpustakaan"
+description = "Stempel peminjaman menunjukkan rak koleksi lama."
+icon = ExtResource("icon")
+world_model = ExtResource("model")
+item_type = &"kartu"
+stackable = false
+max_stack = 1
+quest_item = true
+usable = false

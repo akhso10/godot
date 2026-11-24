@@ -1,0 +1,15 @@
+[gd_resource type="StandardMaterial3D" load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/materials/textures/painted_iron/albedo.png" id="albedo"]
+[ext_resource type="Texture2D" path="res://assets/materials/textures/painted_iron/normal.png" id="normal"]
+[ext_resource type="Texture2D" path="res://assets/materials/textures/painted_iron/roughness.png" id="roughness"]
+[ext_resource type="Texture2D" path="res://assets/materials/textures/painted_iron/metallic.png" id="metallic"]
+
+[resource]
+resource_name = "painted_iron"
+albedo_texture = ExtResource("albedo")
+normal_enabled = true
+normal_texture = ExtResource("normal")
+roughness_texture = ExtResource("roughness")
+metallic = 1.0
+metallic_texture = ExtResource("metallic")
