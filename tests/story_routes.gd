@@ -66,7 +66,7 @@ func play_route(route_index: int, skip_proof: bool, transmit: bool) -> void:
 	check(story.completed == [53,52,52,51][route_index], "mission count")
 	check(story.rescued.size() == [2,1,1,0][route_index], "evacuation party")
 	check(reached.size() == 6, "all chapters")
-	check(extras.size() == 3, "three optional discoveries")
+	check(extras.size() == 15, "fifteen optional discoveries")
 	var before := story.save_data()
 	var broken := story.save_data()
 	broken.cursor = -1
