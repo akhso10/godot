@@ -27,9 +27,16 @@ const COLOURS := {
 	"fluorescent":"f3e4b4", "signal":"e29263","line":"c2b99a","night":"253943",
 }
 var stations: Dictionary = {}
-var spawn_position := Vector3(1.65,0.06,22.2)
+var spawn_position := Vector3(1.65,0.06,28.0)
 var patrol_points: Array[Vector3] = [Vector3(-16,0,0),Vector3(8,0,0),Vector3(8,0,5.6),Vector3(16,0,0),Vector3(0,0,-5.6)]
-var _marks: Dictionary = {}
+var _doors: Dictionary = {}
+var _gate_leaves: Array[StaticBody3D] = []
+var _gate_open := false
+var _door_states := {}
+var _progress_initialized := false
+var _mission_index := {}
+var _prop_meshes := {}
+var _prop_groups := {}
 var _transforms: Dictionary = {}
 var _materials: Dictionary = {}
 var _models: Dictionary = {}
@@ -108,16 +115,113 @@ func _flush_batches() -> void:
 		group.material_override = _mat(key)
 		add_child(group)
 	_transforms.clear()
+	for sector in _prop_groups:
+		var prop:Dictionary = _prop_groups[sector]
+		var batch := MultiMesh.new()
+		batch.transform_format = MultiMesh.TRANSFORM_3D
+		batch.mesh = prop.mesh
+		batch.instance_count = prop.instances.size()
+		for i in batch.instance_count:
+			batch.set_instance_transform(i,prop.instances[i])
+		var group := MultiMeshInstance3D.new()
+		group.name = sector
+		group.multimesh = batch
+		group.visibility_range_end = 46
+		add_child(group)
+	_prop_groups.clear()
 
-func _prop(key: String, p: Vector3, yaw: float = 0, size: Vector3 = Vector3.ONE) -> Node3D:
+func _model(key:String) -> PackedScene:
 	if not _models.has(key):
-		_models[key] = load(MODEL_DIR + key + ".glb")
-	var prop: Node3D = _models[key].instantiate()
-	prop.position = p
-	prop.rotation.y = yaw
-	prop.scale = size
-	add_child(prop)
-	return prop
+		var scene:PackedScene = load(MODEL_DIR + key + ".glb")
+		# These GLBs carry linear RGB in COLOR_0. The importer retains that
+		# channel but leaves the material's vertex-colour switch off.
+		var sample := scene.instantiate()
+		for instance in sample.find_children("*","MeshInstance3D",true,false):
+			var mesh:Mesh = instance.mesh
+			for surface in mesh.get_surface_count():
+				var mat := mesh.surface_get_material(surface) as StandardMaterial3D
+				if mat and mesh.surface_get_format(surface) & Mesh.ARRAY_FORMAT_COLOR:
+					mat.vertex_color_use_as_albedo = true
+		sample.free()
+		_models[key] = scene
+	return _models[key]
+
+func _prop(key: String, p: Vector3, yaw: float = 0, size: Vector3 = Vector3.ONE) -> void:
+	# Each authored GLB is one vertex-coloured static mesh. Batch instances per wing
+	# so that the compatibility renderer can cull sectors and submit fewer draws.
+	if not _prop_meshes.has(key):
+		var scene: Node3D = _model(key).instantiate()
+		var instance: MeshInstance3D = scene if scene is MeshInstance3D else scene.find_children("*","MeshInstance3D",true,false)[0]
+		_prop_meshes[key] = instance.mesh
+		scene.free()
+	var sector := "%s_%s_%s_%s" % [key, floori(p.x / 12.0), floori(p.z / 12.0), int(p.y / STEP_HEIGHT)]
+	if not _prop_groups.has(sector):
+		_prop_groups[sector] = {"mesh":_prop_meshes[key],"instances":[]}
+	_prop_groups[sector].instances.append(Transform3D(Basis(Vector3.UP,yaw)*Basis.from_scale(size),p))
+
+func _room_doors(key:String, opening:Vector3, direction:float) -> void:
+	var leaves: Array[StaticBody3D] = []
+	var model_id := "metal_door" if key in ["archive","storage","power","speaker"] else "wooden_door"
+	for side in [-1,1]:
+		var leaf := StaticBody3D.new()
+		leaf.position = opening + Vector3(side*1.29,0,0)
+		leaf.set_meta("open_angle",side*direction*PI*.50)
+		add_child(leaf)
+		var panel := _model(model_id).instantiate() as Node3D
+		panel.rotation.y = PI if side == 1 else 0.0
+		panel.scale.x = 1.29/.98
+		leaf.add_child(panel)
+		_collider(leaf,Vector3(-side*.645,1.01,0),Vector3(1.29,2.02,.085))
+		leaves.append(leaf)
+	_doors[key] = leaves
+	_set_room(key,true,false)
+
+func _turn(body:StaticBody3D, angle:float, animate:bool) -> void:
+	# Shortest rotation always turns the leaves into the room or courtyard.
+	if animate:
+		var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+		tween.tween_property(body,"rotation:y",angle,.58).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	else:
+		body.rotation.y = angle
+
+func _set_room(key:String,opened:bool,animate:bool) -> void:
+	if _door_states.has(key) and _door_states[key] == opened:
+		return
+	_door_states[key] = opened
+	for leaf in _doors[key]:
+		_turn(leaf,leaf.get_meta("open_angle") if opened else 0.0,animate)
+
+func apply_progress(story) -> void:
+	if _mission_index.is_empty():
+		for i in story.Campaign.MISSIONS.size():
+			_mission_index[story.Campaign.MISSIONS[i].id] = i
+	var step:int = _mission_index.get(story.objective().get("id",""),_mission_index.size())
+	_set_room("class",step > _mission_index.unlock_class,_progress_initialized)
+	_set_room("archive",step > _mission_index.unlock_archive,_progress_initialized)
+	_set_room("speaker",step > _mission_index.speaker_access,_progress_initialized)
+	_set_room("teachers","teachers_office_key" in story.inventory,_progress_initialized)
+	_set_room("clinic","infirmary_key" in story.inventory,_progress_initialized)
+	var gate:bool = step > _mission_index.enter_school and (step < _mission_index.gate_locked or step > _mission_index.emergency_lever)
+	if gate != _gate_open or not _progress_initialized:
+		for leaf in _gate_leaves:
+			_turn(leaf,-float(leaf.get_meta("side"))*PI*.47 if gate else 0.0,_progress_initialized)
+		_gate_open = gate
+	var phase := "night"
+	if not story.ending.is_empty():
+		phase = "dawn"
+	elif step > _mission_index.blackout and step <= _mission_index.generator:
+		phase = "blackout"
+	if phase != _phase:
+		set_phase(phase)
+	_progress_initialized = true
+
+func interaction_position(quest:Dictionary) -> Vector3:
+	if quest.id == "enter_school":
+		return Vector3(1.65,0,25.72)
+	if not _door_states.get(quest.room,true):
+		var room:Vector3 = stations[quest.room]
+		return Vector3(room.x,room.y,signf(room.z)*1.26)
+	return stations[quest.room]
 
 func _label(title: String, p: Vector3, yaw: float = 0.0, px: float = .006, tint := Color("eadab8")) -> Label3D:
 	var label := Label3D.new()
@@ -136,10 +240,10 @@ func _label(title: String, p: Vector3, yaw: float = 0.0, px: float = .006, tint 
 func _prepare_sky() -> void:
 	var env := Environment.new()
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("0c1828")
-	sky_mat.sky_horizon_color = Color("526974")
-	sky_mat.ground_horizon_color = Color("526974")
-	sky_mat.ground_bottom_color = Color("182021")
+	sky_mat.sky_top_color = Color("07131e")
+	sky_mat.sky_horizon_color = Color("14232d")
+	sky_mat.ground_horizon_color = Color("14232d")
+	sky_mat.ground_bottom_color = Color("091311")
 	sky_mat.sun_angle_max = 4.2
 	sky_mat.sky_curve = .17
 	var sky := Sky.new()
@@ -147,12 +251,13 @@ func _prepare_sky() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("b4c9ca")
-	env.ambient_light_energy = .64
+	env.ambient_light_color = Color("879ca5")
+	env.ambient_light_energy = .32
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.fog_enabled = true
-	env.fog_light_color = Color("50646a")
-	env.fog_density = .009
+	env.fog_light_color = Color("16292b")
+	env.fog_density = .014
+	env.fog_sky_affect = .18
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
@@ -160,24 +265,26 @@ func _prepare_sky() -> void:
 	var moon := DirectionalLight3D.new()
 	moon.rotation_degrees = Vector3(-48,-143,0)
 	moon.light_color = Color("bbd4dc")
-	moon.light_energy = .38
+	moon.light_energy = .13
 	add_child(moon)
 
 func _light(p: Vector3, warm: bool, energy: float, radius: float) -> void:
 	var light := OmniLight3D.new()
 	light.position = p
-	light.light_color = Color("f2ca94") if warm else Color("c2daca")
-	light.omni_range = radius
-	light.omni_attenuation = 1.0
-	light.light_energy = energy
-	light.set_meta("energy",energy)
+	light.light_color = Color("ffbe77") if warm else Color("c1dfd0")
+	light.omni_range = radius * .83
+	light.omni_attenuation = 1.45
+	light.light_energy = energy * (1.8 if warm else 1.45)
+	light.set_meta("energy",light.light_energy)
 	_lights.append(light)
 	add_child(light)
 
 func _school() -> void:
 	_box(Vector3(0,-.14,0),Vector3(40.6,.28,21.1),"floor_grey",true)
 	_box(Vector3(0,3.46,-4.55),Vector3(40.6,.28,12.06),"floor_grey",true)
+	_box(Vector3(0,3.31,-4.55),Vector3(40.6,.04,12.06),"soffit")
 	for side in [-1,1]:
+		_box(Vector3(side*12.16,3.31,6.0),Vector3(16.05,.04,9.12),"soffit")
 		_box(Vector3(side*12.16,3.46,6.0),Vector3(16.05,.28,9.12),"floor_grey",true)
 	# Pitched eaves above the atrium and adjoining wings.
 	for side in [-1,1]:
@@ -241,7 +348,7 @@ func _room(key: String,x: float,y: float,direction: int) -> void:
 	var rear_z := sign_z*10.42
 	var station := Vector3(x,y,sign_z*5.52)
 	stations[key] = station
-	_marks[key] = Vector3(x,y,0)
+	
 	for side in [-1,1]:
 		var side_x:float = x+side*2.68
 		_box(Vector3(side_x,y+1.68,inner_z),Vector3(2.71,3.36,.19),"plaster_ivory",true)
@@ -252,8 +359,7 @@ func _room(key: String,x: float,y: float,direction: int) -> void:
 	for side in [-1,1]:
 		_box(Vector3(x+1.32*side,y+1.1,inner_z),Vector3(.082,2.2,.25),"wood")
 	_box(Vector3(x,y+2.20,inner_z),Vector3(2.71,.085,.27),"wood")
-	_prop("wooden_door" if key not in ["archive","power","storage"] else "metal_door",Vector3(x-1.29,y,inner_z+sign_z*.13),-sign_z*PI/2)
-	_collider(_static,Vector3(x-1.29,y+1.01,inner_z+sign_z*.62),Vector3(.07,2.02,.98))
+	_room_doors(key,Vector3(x,y,inner_z+sign_z*.13),sign_z)
 	_box(Vector3(x,y+2.62,inner_z-sign_z*.12),Vector3(2.65,.37,.07),"ink")
 	_label(str(LABELS[key]).to_upper(),Vector3(x,y+2.63,inner_z-sign_z*.17),yaw,.0045)
 	for side in [-1,1]:
@@ -398,11 +504,23 @@ func _courtyard() -> void:
 			_prop("tropical_tree",Vector3(side*(22.2+i%2*.72),0,12.9+i*3.3),i*1.67)
 		for x in [4.05,11.05,18.05]:
 			_prop("concrete_column",Vector3(side*x,0,24.43),0,Vector3(1.35,.87,1.35))
-		# Half-open visible compound gate; collision at the property edge.
-		_prop("school_gate",Vector3(side*2.20,0,24.38),side*.34)
+		var gate_leaf := StaticBody3D.new()
+		gate_leaf.position = Vector3(side*4.0,0,24.45)
+		gate_leaf.set_meta("side",side)
+		add_child(gate_leaf)
+		_gate_leaves.append(gate_leaf)
+		var grille := _model("school_gate").instantiate() as Node3D
+		grille.position.x = -side*2.0
+		grille.scale.x = 4.0/3.4
+		gate_leaf.add_child(grille)
+		_collider(gate_leaf,Vector3(-side*2.0,1.05,0),Vector3(4.0,2.1,.13))
 		_light(Vector3(side*4.05,2.60,24.26),true,.67,4.1)
 		_box(Vector3(side*4.05,2.87,24.40),Vector3(.26,.18,.25),"fluorescent")
-	_collider(_static,Vector3(0,1.7,24.59),Vector3(8.09,3.4,.22))
+	# Street-side approach to the school. Kerbs and fence surround the full playable strip.
+	_box(Vector3(0,-.17,27.85),Vector3(8.3,.34,6.7),"wet_asphalt",true)
+	for edge in [-1,1]:
+		_box(Vector3(edge*4.1,.85,27.9),Vector3(.18,1.70,6.8),"painted_iron",true)
+	_box(Vector3(0,.9,31.1),Vector3(8.35,1.8,.18),"painted_iron",true)
 	_prop("flagpole",Vector3(-6.96,0,20.45))
 	_box(Vector3(-6.96,.095,20.45),Vector3(1.13,.19,1.13),"rough_concrete",true)
 	_box(Vector3(-6.96,.24,20.45),Vector3(.78,.11,.78),"rough_concrete",true)
@@ -463,7 +581,7 @@ func set_phase(phase: String) -> void:
 	if not _built:
 		return
 	var power_scale := .42 if phase == "blackout" else 1.0
-	_world_environment.ambient_light_energy = .47 if phase == "blackout" else (.88 if phase == "dawn" else .64)
+	_world_environment.ambient_light_energy = .20 if phase == "blackout" else (.67 if phase == "dawn" else .32)
 	for light in _lights:
 		light.light_energy = light.get_meta("energy") * power_scale
 
@@ -535,6 +653,24 @@ func _to_hall(p: Vector3) -> Array[Vector3]:
 	return path
 
 func route_between(start: Vector3,finish: Vector3) -> Array[Vector3]:
+	if _floor(start) == _floor(finish):
+		if _zone(start) == "corridor" and _zone(finish) == "corridor":
+			return [finish]
+		if _zone(start) == "room" and _zone(finish) == "room" and roundi(start.x/8.0) == roundi(finish.x/8.0) and signf(start.z) == signf(finish.z):
+			return [Vector3(roundf(start.x/8.0)*8.0,start.y,start.z),Vector3(roundf(start.x/8.0)*8.0,finish.y,finish.z),finish]
+	if _zone(start) == "court" and _zone(finish) == "court":
+		var flat := Vector3(finish.x-start.x,0,finish.z-start.z)
+		var clearance := flat.normalized().cross(Vector3.UP)*.31
+		var clear := true
+		for side in [-1,0,1]:
+			var offset := Vector3.UP * .65 + clearance * float(side)
+			var query := PhysicsRayQueryParameters3D.create(start+offset,finish+offset,1)
+			if not get_world_3d().direct_space_state.intersect_ray(query).is_empty():
+				clear = false
+				break
+		if clear:
+			return [finish]
+		return [Vector3(start.x,0,17.7),Vector3(finish.x,0,17.7),finish]
 	var raw: Array[Vector3] = _to_hall(start)
 	if not is_equal_approx(_floor(start), _floor(finish)):
 		var ramp: Array[Vector3] = [

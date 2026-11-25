@@ -66,8 +66,8 @@ func _key(button:Button,keycode:Key) -> void:
 func _pager(game, pos:int, pages:int, navigate:Callable) -> void:
 	var ui = game.ui
 	ui.label("%d  /  %d" % [pos + 1, pages],Vector2(900,650),Vector2(100,44),17,UI.BOLD)
-	var prev: Button = ui.button("‹",Vector2(1050,650),Vector2(75,44),navigate.bind(pos-1),false,pos>0)
-	var nxt: Button = ui.button("›",Vector2(1137,650),Vector2(75,44),navigate.bind(pos+1),false,pos+1 < pages)
+	var prev: Button = ui.button("‹",Vector2(1050,650),Vector2(75,44),func(): navigate.call(pos-1),false,pos>0)
+	var nxt: Button = ui.button("›",Vector2(1137,650),Vector2(75,44),func(): navigate.call(pos+1),false,pos+1 < pages)
 	prev.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nxt.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	prev.tooltip_text = "Sebelumnya · Page Up"
@@ -108,8 +108,7 @@ func _select_item(game,index:int) -> void:
 	selected_item = index
 	_draw(game)
 
-# bind() appends to previously bound arguments, so game precedes the target page.
-func _bag_page(game,index:int) -> void:
+func _bag_page(index:int,game) -> void:
 	inventory_offset = index
 	selected_item = index*8
 	_draw(game)
@@ -170,11 +169,11 @@ func _journal_tab(game,tab:String) -> void:
 	journal_tab = tab
 	_draw(game)
 
-func _log_page(game,index:int) -> void:
+func _log_page(index:int,game) -> void:
 	log_offset = index
 	_draw(game)
 
-func _person_page(game,index:int) -> void:
+func _person_page(index:int,game) -> void:
 	character_index = index
 	_draw(game)
 

@@ -313,7 +313,8 @@ func _ghost_tick(dt: float) -> void:
 	if ghost_clock > 0:
 		ghost_clock -= dt
 		_face("laras",player.global_position,dt)
-		_stand("laras",dt,"Search")
+		var pose := "Appear" if ghost_clock > 4.4 else ("Disappear" if ghost_clock < 1.7 else "Float")
+		_stand("laras",dt,pose)
 		bodies.laras.body.visible = ghost_clock > 0
 
 func _face(id: String,target: Vector3,dt: float) -> void:
@@ -371,5 +372,20 @@ func _move(id: String,target: Vector3,speed: float,dt: float) -> bool:
 
 func _play(id: String, clip: String) -> void:
 	var anim: AnimationPlayer = bodies[id].anim
+	if id == "guardian":
+		match state:
+			State.PATROL: clip = "Patrol" if clip == "Walk" else clip
+			State.SUSPICIOUS: clip = "Listen"
+			State.INVESTIGATE: clip = "Investigate" if clip == "Walk" else "HeadTurn"
+			State.CHASE: clip = "Chase" if clip in ["Walk", "Run"] else clip
+			State.ATTACK: clip = "Attack"
+			State.RETURN: clip = "ReturnPatrol" if clip == "Walk" else clip
+	elif id in ["akbar", "reski"]:
+		if clip == "Search":
+			clip = "NervousIdle"
+		elif clip == "Idle" and player and player.hidden:
+			clip = "Hide"
+		elif clip in ["Walk", "Run"]:
+			clip = "Escape" if clip == "Run" else "Follow"
 	if anim and anim.has_animation(clip) and anim.current_animation != clip:
 		anim.play(clip,.20)

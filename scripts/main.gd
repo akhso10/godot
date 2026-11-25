@@ -37,15 +37,12 @@ var notice_hud: Label
 var notice_time := 0.0
 var last_notice := ""
 var dialog_title := ""
-var previous_page := ""
-var selected_item := 0
-var inventory_page := 0
-var journal_page := 0
-var map_floor := 0
+var notebook = preload("res://scripts/notebook.gd").new()
+var gallery
+var pending_cut := false
 var marker_target: Vector3
 var effect_time := 0.0
 var flash_layer: ColorRect
-var intro_override := ""
 var saving_failed := false
 
 func _ready() -> void:
@@ -71,6 +68,7 @@ func home() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	sound.ambience("menu")
 	ui.home(not read_save().is_empty(),menu_action)
+	ui.button("Arsip visual",Vector2(195,661),Vector2(170,42),menu_action.bind("gallery"))
 
 func menu_action(id:String) -> void:
 	sound.play("click")
@@ -85,6 +83,10 @@ func menu_action(id:String) -> void:
 		"settings": settings()
 		"controls": controls()
 		"credits": credits()
+		"gallery":
+			set_page("gallery")
+			gallery = load("res://scripts/gallery.gd").new()
+			gallery.show(self)
 		"quit": get_tree().quit()
 
 func read_save() -> Dictionary:
@@ -127,6 +129,7 @@ func save_error() -> void:
 	notify("Checkpoint gagal ditulis ke direktori pengguna.")
 
 func start_game(resume:bool) -> void:
+	notebook = preload("res://scripts/notebook.gd").new()
 	var data:Dictionary = read_save() if resume else {}
 	if resume and data.is_empty():
 		home()
@@ -142,6 +145,7 @@ func start_game(resume:bool) -> void:
 	story = Story.new()
 	if resume: story.restore(data.story)
 	elapsed = data.get("elapsed",0.)
+	pending_cut = false
 	if not story.ending.is_empty():
 		show_ending(story.ending)
 		return
@@ -201,7 +205,7 @@ func sync_markers() -> void:
 		var obj = Station.new()
 		markers.add_child(obj)
 		var count:int = station_counts.get(quest.room,0)
-		obj.position = world.stations[quest.room] + Vector3(count*1.15,0,0)
+		obj.position = (world.interaction_position(quest) if world.has_method("interaction_position") else world.stations[quest.room]) + Vector3(count*1.15,0,0)
 		obj.setup(quest,i>0)
 		station_counts[quest.room] = count+1
 		if i==0: marker_target = obj.position
@@ -291,7 +295,8 @@ func process_event(result:Dictionary, old_chapter:int) -> void:
 	if "battery" in story.inventory and not player.has_meta("received_battery"):
 		player.set_meta("received_battery",true)
 		player.spare_batteries += 1
-	if old_chapter != story.chapter:
+	pending_cut = old_chapter != story.chapter
+	if pending_cut:
 		actors.set_stage(story.chapter)
 		actors.set_meta("shown_chapter",story.chapter)
 		sound.ambience(str(story.chapter))
@@ -301,22 +306,31 @@ func process_event(result:Dictionary, old_chapter:int) -> void:
 		show_ending(result.ending)
 		return
 	set_page("dialog")
+	if result.get("rescued","") in ["reski","akbar"] and story.chapter in [2,3]:
+		ui.picture("res://assets/art/cinematic_%s_rescue.webp" % result.rescued,Vector2.ZERO,Vector2(1280,720)) 
 	ui.box(Vector2(0,258),Vector2(1280,462),Color(.045,.067,.058,.96))
 	ui.box(Vector2(72,300),Vector2(35,3),UI.RED)
 	ui.label(dialog_title,Vector2(74,314),Vector2(1120,54),32,UI.SERIF)
 	var choices:Array = result.get("choices",[])
 	ui.label(result.get("text",""),Vector2(74,380),Vector2(1100,150),int(cfg.get_value("game","text",21)),UI.SANS,UI.PAPER,true)
 	if choices.is_empty():
-		ui.button("Lanjutkan",Vector2(74,634),Vector2(236,50),cutscene if old_chapter!=story.chapter else play_screen,true,true,"play")
+		ui.button("Lanjutkan",Vector2(74,634),Vector2(236,50),finish_dialog,true,true,"play")
 	else:
 		for i in range(choices.size()):
 			var row := floori(i/2.0)
 			ui.button(choices[i],Vector2(74+(i%2)*568,536+row*50),Vector2(550,45),answer.bind(i),false)
 
+func finish_dialog() -> void:
+	if pending_cut:
+		pending_cut = false
+		cutscene()
+	else:
+		play_screen()
+
 func caught() -> void:
 	if page!="play": return
 	set_page("caught")
-	sound.play("catch")
+	sound.play("catch") if setting("scares",true) else sound.play("bell")
 	ui.backplate("res://assets/art/cinematic_separation.webp",.57)
 	ui.header("Penjaga Bayangan","Kamu tidak berhasil keluar.")
 	ui.label("Langkahnya berhenti tepat di belakangmu. Suara bel terdengar lagi.",Vector2(74,253),Vector2(980,90),24,UI.SERIF)
@@ -371,7 +385,7 @@ func shortcut(action:String) -> void:
 		"pause": paused()
 		"inventory","map","journal":
 			set_page(action)
-			load("res://scripts/notebook.gd").new().show(self,action)
+			notebook.show(self,action)
 		"radio":
 			if "walkie_talkie" in story.inventory:
 				sound.play("radio")
@@ -397,8 +411,8 @@ func apply_settings() -> void:
 	sound.set_volume(setting("volume",.85))
 	for bus in ["Music","Ambience","SFX","Dialogue","UI"]:
 		sound.set_bus_volume(bus,setting(bus,1.0))
-	Engine.max_fps = int(setting("fps",60))
-	get_viewport().scaling_3d_scale = float(setting("scale",1.0))
+	Engine.max_fps = int(setting("fps",30))
+	get_viewport().scaling_3d_scale = float(setting("scale",.85))
 	if DisplayServer.get_name()!="headless":
 		var mode = DisplayServer.WINDOW_MODE_FULLSCREEN if setting("fullscreen",false) else DisplayServer.WINDOW_MODE_WINDOWED
 		if DisplayServer.window_get_mode()!=mode: DisplayServer.window_set_mode(mode)
@@ -406,6 +420,7 @@ func apply_settings() -> void:
 	if is_instance_valid(player):
 		player.sensitivity = float(setting("sensitivity",2.4))*.001
 		player.camera.fov = float(setting("fov",76))
+		player.camera.far = 90.0
 		player.head_bob = setting("bob",true)
 	if is_instance_valid(actors): actors.difficulty = setting("difficulty","Normal")
 	if is_instance_valid(atmosphere):
@@ -425,9 +440,10 @@ func settings(tab:int=0) -> void:
 	elif tab==1:
 		toggle_row("Layar penuh","fullscreen",false,0)
 		toggle_row("Sinkronisasi vertikal","vsync",true,1)
-		option_row("Batas frame per detik","fps",["30 FPS","60 FPS","120 FPS"],[30,60,120],60,2)
-		option_row("Skala render 3D","scale",["70%","85%","100%"],[.7,.85,1.],1.,3)
+		option_row("Batas frame per detik","fps",["30 FPS","60 FPS","120 FPS"],[30,60,120],30,2)
+		option_row("Skala render 3D","scale",["70%","85%","100%"],[.7,.85,1.],.85,3)
 		toggle_row("Efek suasana dan kilatan","effects",true,4)
+		toggle_row("Kejutan suara saat tertangkap","scares",true,5)
 	else:
 		var names = ["Utama","Musik","Suasana sekolah","Efek dan langkah","Dialog","Antarmuka"]
 		var keys = ["volume","Music","Ambience","SFX","Dialogue","UI"]
@@ -473,7 +489,7 @@ func toggle_row(title:String,key:String,fallback:bool,row:int) -> void:
 func _input(event:InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo): return
 	if event.physical_keycode==KEY_ESCAPE and page not in ["home","play","cut","ending","caught"]:
-		if page=="dialog": play_screen()
+		if page=="dialog": finish_dialog()
 		else: back()
 		get_viewport().set_input_as_handled()
 	elif (page=="inventory" and event.physical_keycode==KEY_TAB) or (page=="map" and event.physical_keycode==KEY_M) or (page=="journal" and event.physical_keycode==KEY_J):
