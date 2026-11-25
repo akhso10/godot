@@ -27,3 +27,9 @@ XDG_DATA_HOME="$(mktemp -d)" godot --headless --fixed-fps 60 --script res://test
 ```
 
 Perbaikan yang diuji meliputi akses interaksi di sisi luar gerbang terkunci, navigasi kontrol jurnal setelah pergantian halaman dan pemulihan checkpoint sebelumnya apabila JSON utama terpotong.
+
+## Pemeriksaan hasil distribusi
+
+Ketiga ZIP di branch publik `downloads` berhasil diunduh melalui HTTPS. SHA-256 cocok dan setiap entri ZIP lulus pemeriksaan CRC. Proyek dari ZIP source dibuka di direktori bersih, diimpor ulang dan lulus 3.552 pemeriksaan cerita.
+
+Pasangan EXE dan PCK hasil ekspor membuka jendela melalui Wine 10 (64-bit) dengan OpenGL Compatibility. Klik **Permainan baru** menampilkan ilustrasi prolog; klik **Masuk ke sekolah** menampilkan gerbang 3D, Reski, Akbar dan tujuan pertama. Menu keluar menutup proses. Ini adalah uji kompatibilitas di Linux. Pengujian native Windows dan pengukuran pada laptop target tetap menunggu perangkat.
