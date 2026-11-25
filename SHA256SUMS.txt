@@ -1,0 +1,3 @@
+4468fe6f2da0dd67f3ace70f93b6b123ccea4412d13adae2efb9341cf4fa9bfd  sekolah-setelah-tengah-malam-source.zip
+9c46f8628b620627fa5653c5c431bfbc4d24fd2a0d7f55e5e30201601d835d08  sekolah-setelah-tengah-malam-assets.zip
+e9b1e88384b5deb097b3c4560a238fcbe74bfa41751c88127ff237569b3a918f  sekolah-setelah-tengah-malam-windows.zip
