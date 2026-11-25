@@ -1,5 +1,5 @@
 """Package a committed source tree and an exported Windows build. Python 3."""
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import argparse
 import hashlib
 import subprocess
@@ -22,10 +22,24 @@ sums = []
 for kind, entries in kinds.items():
     archive = args.output/f"{prefix}-{kind}.zip"
     with zipfile.ZipFile(archive,"w",compression=zipfile.ZIP_DEFLATED,compresslevel=6) as package:
+        # Godot Project Manager makes folders only when it reads a directory
+        # entry. Write every parent before its children, including hidden paths.
+        folders = {folder for _, target in entries for folder in PurePosixPath(target).parents
+                   if folder != PurePosixPath(".")}
+        for folder in sorted(folders, key=lambda path: (len(path.parts), path.as_posix())):
+            package.mkdir(folder.as_posix())
         for local, target in entries:
             package.write(root/local, target)
     with zipfile.ZipFile(archive) as package:
-        if package.testzip(): raise RuntimeError(f"Invalid ZIP {archive}")
+        created = {PurePosixPath(".")}
+        for member in package.infolist():
+            path = PurePosixPath(member.filename)
+            if path.parent not in created:
+                raise RuntimeError(f"{archive.name}: missing parent entry before {member.filename}")
+            if member.is_dir():
+                created.add(path)
+        if package.testzip():
+            raise RuntimeError(f"Invalid ZIP {archive}")
     with archive.open("rb") as stream:
         digest = hashlib.file_digest(stream,"sha256").hexdigest()
         sums.append(f"{digest}  {archive.name}")

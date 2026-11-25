@@ -11,7 +11,7 @@ Game horor 3D orang pertama berbahasa Indonesia. Pukul 23.47, Raka kembali ke SM
 | Paket | Cara menggunakan |
 | --- | --- |
 | [Game Windows 64-bit](https://raw.githubusercontent.com/akhso10/godot/downloads/sekolah-setelah-tengah-malam-windows.zip) | Ekstrak seluruh ZIP. Jalankan **Sekolah.exe** dengan **Sekolah.pck** di folder yang sama. |
-| [Proyek Godot lengkap](https://raw.githubusercontent.com/akhso10/godot/downloads/sekolah-setelah-tengah-malam-source.zip) | Ekstrak, buka Godot 4.7.2, klik **Import**, pilih **project.godot**, tunggu impor, lalu tekan **F6** pada adegan utama atau **F5** untuk proyek. |
+| [Proyek Godot lengkap](https://raw.githubusercontent.com/akhso10/godot/downloads/sekolah-setelah-tengah-malam-source.zip) | Di Godot 4.7.2, klik **Import**, pilih ZIP source, pilih folder tujuan baru yang kosong, lalu klik **Import**. Centang **Edit Now** untuk langsung membuka editor. Setelah impor selesai, tekan **F5**. Anda juga bisa mengekstrak ZIP melalui File Explorer lalu memilih **project.godot**. Untuk ZIP dari v1.0.0, gunakan cara File Explorer atau unduh ZIP source v1.0.1. |
 | [Seluruh aset](https://raw.githubusercontent.com/akhso10/godot/downloads/sekolah-setelah-tengah-malam-assets.zip) | Berisi gambar, sumber GLB, tekstur, ikon, audio, font dan daftar aset. |
 | [Checksum SHA-256](https://raw.githubusercontent.com/akhso10/godot/downloads/SHA256SUMS.txt) | Cocokkan dengan hasil `Get-FileHash namafile.zip -Algorithm SHA256` di PowerShell. |
 
