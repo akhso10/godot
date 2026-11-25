@@ -1,0 +1,30 @@
+name: Publish verified game packages
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify the versioned ZIP files and attach them to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          base="https://raw.githubusercontent.com/$REPOSITORY/packages-$VERSION"
+          for kind in source assets windows; do
+            name="sekolah-setelah-tengah-malam-$kind.zip"
+            curl --fail --location --retry 3 --output "$name" "$base/$name"
+          done
+          curl --fail --location --retry 3 --output SHA256SUMS.txt "$base/SHA256SUMS.txt"
+          sha256sum --check --strict SHA256SUMS.txt
+          gh release create "$VERSION" --repo "$REPOSITORY" --verify-tag \
+            --title "Sekolah Setelah Tengah Malam $VERSION" \
+            --notes "Ekstrak ZIP Windows lalu jalankan Sekolah.exe. ZIP source dapat diimpor melalui project.godot pada Godot 4.7.2." \
+            sekolah-setelah-tengah-malam-*.zip SHA256SUMS.txt
