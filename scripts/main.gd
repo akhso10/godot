@@ -46,6 +46,7 @@ var flash_layer: ColorRect
 var saving_failed := false
 
 func _ready() -> void:
+	get_tree().auto_accept_quit = false
 	cfg.load(PREFS)
 	sound = Sound.new()
 	add_child(sound)
@@ -87,18 +88,23 @@ func menu_action(id:String) -> void:
 			set_page("gallery")
 			gallery = load("res://scripts/gallery.gd").new()
 			gallery.show(self)
-		"quit": get_tree().quit()
+		"quit": exit_game()
+
+func read_slot(path:String) -> Dictionary:
+	if not FileAccess.file_exists(path): return {}
+	var file = FileAccess.open(path,FileAccess.READ)
+	if file == null: return {}
+	var parser := JSON.new()
+	if parser.parse(file.get_as_text()) != OK: return {}
+	var parsed = parser.data
+	if parsed is Dictionary and parsed.get("version") == 1 and parsed.get("story") is Dictionary and parsed.get("pos") is Array and parsed.pos.size()==3:
+		if Story.new().restore(parsed.story) and parsed.pos.all(func(v): return (v is float or v is int) and is_finite(v)):
+			return parsed
+	return {}
 
 func read_save() -> Dictionary:
-	for path in [SAVE, SAVE+".bak"]:
-		if not FileAccess.file_exists(path): continue
-		var file = FileAccess.open(path,FileAccess.READ)
-		if file == null: continue
-		var parsed = JSON.parse_string(file.get_as_text())
-		if parsed is Dictionary and parsed.get("version") == 1 and parsed.get("story") is Dictionary and parsed.get("pos") is Array and parsed.pos.size()==3:
-			if Story.new().restore(parsed.story) and parsed.pos.all(func(v): return (v is float or v is int) and is_finite(v)):
-				return parsed
-	return {}
+	var primary = read_slot(SAVE)
+	return read_slot(SAVE+".bak") if primary.is_empty() else primary
 
 func checkpoint() -> void:
 	if not is_instance_valid(player): return
@@ -117,7 +123,7 @@ func checkpoint() -> void:
 	if not ok:
 		save_error()
 		return
-	if FileAccess.file_exists(path):
+	if not read_slot(SAVE).is_empty():
 		if DirAccess.copy_absolute(path,path+".bak") != OK:
 			save_error()
 			return
@@ -331,7 +337,7 @@ func caught() -> void:
 	if page!="play": return
 	set_page("caught")
 	sound.play("catch") if setting("scares",true) else sound.play("bell")
-	ui.backplate("res://assets/art/cinematic_separation.webp",.57)
+	ui.backplate("res://assets/art/apparitions/guardian_jumpscare_overlay.webp" if setting("effects",true) else UI.MENU,.57)
 	ui.header("Penjaga Bayangan","Kamu tidak berhasil keluar.")
 	ui.label("Langkahnya berhenti tepat di belakangmu. Suara bel terdengar lagi.",Vector2(74,253),Vector2(980,90),24,UI.SERIF)
 	ui.button("Coba dari checkpoint",Vector2(74,462),Vector2(332,54),start_game.bind(true),true,true,"continue")
@@ -395,7 +401,7 @@ func shortcut(action:String) -> void:
 
 func paused() -> void:
 	simple_page("pause","Permainan dijeda")
-	var options = [["Lanjutkan permainan",play_screen],["Muat checkpoint",start_game.bind(true)],["Pengaturan",settings],["Panduan kontrol",controls],["Menu utama",home],["Keluar",get_tree().quit]]
+	var options = [["Lanjutkan permainan",play_screen],["Muat checkpoint",start_game.bind(true)],["Pengaturan",settings],["Panduan kontrol",controls],["Menu utama",home],["Keluar",exit_game]]
 	for i in options.size():
 		ui.button(options[i][0],Vector2(74,224+i*60),Vector2(410,48),options[i][1],i==0)
 
@@ -497,3 +503,18 @@ func _input(event:InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 var atmosphere
+
+var leaving := false
+
+func _notification(what:int) -> void:
+	if what==NOTIFICATION_WM_CLOSE_REQUEST and is_inside_tree(): exit_game()
+
+func exit_game() -> void:
+	if leaving: return
+	leaving = true
+	if is_instance_valid(player): player.active=false
+	for node in find_children("*","AudioStreamPlayer",true,false)+find_children("*","AudioStreamPlayer3D",true,false):
+		node.stop()
+		node.stream=null
+	await get_tree().create_timer(.3).timeout
+	get_tree().quit()

@@ -84,7 +84,7 @@ def provenance(path):
         "ui": "Gambar vektor dan raster orisinal; tools/ui_icons.py",
         "vfx": "Tekstur efek orisinal; tools/render_vfx.py",
     }.get(group, "Berkas proyek")
-    if group == "art" and any(p in path.parts for p in ("locations", "locations_3d", "captures")):
+    if group == "art" and any(p in path.parts for p in ("locations_3d", "captures")):
         source = "Tangkapan level Godot; proyek SMA Nusa Bangsa"
     brief = {"character_studies":"4 dan 20", "art":"4, 7, 12 dan 19", "models":"4, 8 dan 10",
              "items":"9 dan 15", "audio":"22", "materials":"11", "ui":"12 dan 13",
@@ -148,16 +148,16 @@ class Usage:
                 return "Runtime", "scripts/notebook.gd"
             if key in self.drops and folder == "models":
                 return "Runtime", "scripts/station.gd"
-            return "Katalog", "assets/items/catalog/" + key + ".tres"
+            return "Runtime", "scripts/gallery.gd; assets/items/catalog/" + key + ".tres"
         if subset == "materials":
             mat = key if path.suffix == ".tres" else path.parent.name
             if mat in self.materials:
                 return "Runtime", "scripts/world.gd"
-            return "Pustaka bahan", f"assets/materials/{mat}.tres"
+            return "Runtime", f"scripts/gallery.gd; assets/materials/{mat}.tres"
         if subset == "models" and path.parts[2] == "environment":
             if f'"{key}"' in self.world_setup:
                 return "Runtime", "scripts/world.gd"
-            return "Kit modular", ""
+            return "Runtime", "scripts/gallery.gd"
         if subset == "art":
             if key in {"ending_good","ending_neutral","ending_bad"} and "ending_" in self.ui_code:
                 return "Runtime", "scripts/main.gd"
@@ -166,20 +166,20 @@ class Usage:
                 return "Runtime", "scripts/notebook.gd"
             if f'"{key}"' in self.ui_code:
                 return "Runtime", "Antarmuka / galeri"
-            return "Referensi visual", ""
+            return "Runtime", "scripts/gallery.gd"
         if subset == "character_studies":
-            return "Referensi model", ""
+            return "Runtime", "scripts/gallery.gd"
         if subset == "audio":
             if path.parent.name == "footsteps":
                 return "Runtime", "scripts/player.gd"
             if f'"{key}"' in self.mix or key in self.sound_files:
                 return "Runtime", "scripts/sound.gd; player atau actors"
-            return "Pustaka audio", ""
+            return "Runtime", "scripts/gallery.gd"
         if subset == "ui" and key.startswith("icon_"):
             id_ = key.removeprefix("icon_")
             if re.search(r'\btrue,\s*"' + re.escape(id_) + r'"', self.ui_code) or id_ in {"map","inventory","journal"}:
                 return "Runtime", "Antarmuka / buku lapangan"
-            return "Pustaka ikon", ""
+            return "Runtime", "scripts/gallery.gd"
         if subset == "vfx" and f'"{key}"' in self.scripts.get("atmosphere", ""):
             return "Runtime", "scripts/atmosphere.gd"
         return "Pustaka proyek", ""

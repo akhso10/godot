@@ -15,21 +15,14 @@ func setup(entry:Dictionary, extra:bool) -> void:
 	collision.shape = shape
 	collision.position.y = 0.86
 	add_child(collision)
-	var base := MeshInstance3D.new()
-	var cabinet := BoxMesh.new()
-	cabinet.size = Vector3(0.75,0.72,0.50)
-	var finish := StandardMaterial3D.new()
-	finish.albedo_color = Color("#585446")
-	finish.roughness = 0.88
-	cabinet.material = finish
-	base.mesh = cabinet
-	base.position.y = 0.36
-	add_child(base)
-	var model_path := "res://assets/items/models/%s.glb" % entry.get("item","mystery_note")
-	if ResourceLoader.exists(model_path):
-		shown_model = load(model_path).instantiate()
-		add_child(shown_model)
-		shown_model.position.y = 0.77
+	if entry.has("item"):
+		var desk = preload("res://assets/models/environment/student_desk.glb").instantiate()
+		add_child(desk)
+		var model_path := "res://assets/items/models/%s.glb" % entry.item
+		if ResourceLoader.exists(model_path):
+			shown_model = load(model_path).instantiate()
+			add_child(shown_model)
+			shown_model.position.y = 0.79
 	glyph.text = "◇" if extra else "◆"
 	glyph.modulate = Color("#b5c3b8") if extra else Color("#e8c38b")
 	glyph.outline_size = 4

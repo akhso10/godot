@@ -2,7 +2,7 @@ extends RefCounted
 ## Optional production archive. ResourceLoader enumerates original paths even in an exported PCK.
 const UI := preload("res://scripts/interface.gd")
 const ART := "res://assets/art/"
-const SETS := ["Lokasi","Tokoh","Adegan cerita","Benda","Properti 3D","Material","Efek","Ikon"]
+const SETS := ["Lokasi","Tokoh","Adegan cerita","Benda","Properti 3D","Material","Efek","Ikon","Rekaman"]
 const LOCATIONS := {
 	"school_gate":"Gerbang sekolah","school_courtyard":"Halaman upacara","corridor_floor1":"Koridor lantai satu",
 	"corridor_floor2":"Koridor lantai dua","classroom_xii_rpl":"Kelas XII RPL","teachers_office":"Ruang guru",
@@ -65,6 +65,9 @@ func _entries() -> Array:
 		5: _scan(list,"res://assets/materials","tres")
 		6: _scan(list,"res://assets/vfx","png")
 		7: _scan(list,"res://assets/ui/icons","svg")
+		8:
+			for section in ["ambience","music","effects","footsteps"]:
+				_scan(list,"res://assets/audio/"+section,"ogg")
 	return list
 
 func _draw(game) -> void:
@@ -76,11 +79,11 @@ func _draw(game) -> void:
 	ui.label("SMA Nusa Bangsa",Vector2(121,68),Vector2(450,23),14,UI.SANS,UI.MUTED)
 	ui.box(Vector2(58,105),Vector2(1164,1),Color("#546258"))
 	for i in SETS.size():
-		ui.button(SETS[i],Vector2(58,135+i*52),Vector2(218,43),_category.bind(game,i),category==i)
+		ui.button(SETS[i],Vector2(58,125+i*46),Vector2(218,43),_category.bind(game,i),category==i)
 	var close:Button = ui.button("Kembali",Vector2(58,632),Vector2(218,49),game.home,false,true,"back")
 	close.set_meta("archive",self)
 	if ResourceLoader.exists("res://scripts/character_viewer.gd"):
-		ui.button("Animasi 3D",Vector2(58,560),Vector2(218,45),_viewer.bind(game))
+		ui.button("Animasi 3D",Vector2(58,557),Vector2(218,45),_viewer.bind(game))
 	var entries := _entries()
 	if entries.is_empty():
 		ui.label("Album ini kosong.",Vector2(332,231),Vector2(580,60),28,UI.SERIF)
@@ -96,6 +99,14 @@ func _draw(game) -> void:
 		title = item.display_name
 		_preview(ui,origin,extent,item.world_model)
 		ui.picture(item.icon.resource_path,Vector2(340,402),Vector2(132,132),false)
+	elif category==8:
+		ui.picture("res://assets/art/locations/announcement_control_room.webp",origin,extent)
+		var tape := AudioStreamPlayer.new()
+		ui.add_child(tape)
+		tape.stream = load(path)
+		tape.volume_db = -4
+		ui.button("Putar rekaman",Vector2(344,469),Vector2(225,52),tape.play,true,true,"play")
+		ui.button("Berhenti",Vector2(585,469),Vector2(156,52),tape.stop)
 	elif category==4 or category==5:
 		_preview(ui,origin,extent,load(path))
 	else:
